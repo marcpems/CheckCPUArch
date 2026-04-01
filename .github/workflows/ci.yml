@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+        configuration: [Release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        shell: pwsh
+        run: |
+          msbuild.exe .\CheckCPUArch.vcxproj /m `
+            /p:Configuration=${{ matrix.configuration }} `
+            /p:Platform=${{ matrix.platform }} `
+            /p:OutDir="${{ github.workspace }}\out\${{ matrix.platform }}\${{ matrix.configuration }}\"
+
+      - name: Verify outputs
+        shell: pwsh
+        run: |
+          dir "out\${{ matrix.platform }}\${{ matrix.configuration }}\"
+          if (!(Test-Path "out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.exe")) { throw "Missing EXE" }
+          if (!(Test-Path "out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.pdb")) { throw "Missing PDB" }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CheckCPUArch-${{ matrix.platform }}-${{ matrix.configuration }}
+          path: |
+            out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.exe
+            out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.pdb
+
