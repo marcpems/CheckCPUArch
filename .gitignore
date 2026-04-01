@@ -1,0 +1,19 @@
+# Build outputs
+ARM64/
+x64/
+Debug/
+Release/
+
+# VS intermediate directories
+CheckCPUArch/
+
+# User-specific files
+*.user
+*.suo
+*.ncb
+*.sdf
+*.opensdf
+.vs/
+
+# Build logs
+*.log
