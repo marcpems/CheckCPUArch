@@ -25,11 +25,10 @@ jobs:
         run: |
           $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
           $installPath = & $vswhere -latest -property installationPath
-          $vcDir = Join-Path $installPath "VC\Tools\MSVC"
-          $latest = Get-ChildItem $vcDir -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          $major = $latest.Name.Split('.')[0]
-          $toolset = "v${major}0"
-          Write-Host "Detected toolset: $toolset (from $($latest.Name))"
+          $toolsetsDir = Join-Path $installPath "MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets"
+          $latest = Get-ChildItem $toolsetsDir -Directory -Filter "v14*" | Sort-Object Name -Descending | Select-Object -First 1
+          $toolset = $latest.Name
+          Write-Host "Detected platform toolset: $toolset"
           echo "toolset=$toolset" >> $env:GITHUB_OUTPUT
 
       - name: Build
@@ -74,11 +73,10 @@ jobs:
         run: |
           $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
           $installPath = & $vswhere -latest -property installationPath
-          $vcDir = Join-Path $installPath "VC\Tools\MSVC"
-          $latest = Get-ChildItem $vcDir -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          $major = $latest.Name.Split('.')[0]
-          $toolset = "v${major}0"
-          Write-Host "Detected toolset: $toolset (from $($latest.Name))"
+          $toolsetsDir = Join-Path $installPath "MSBuild\Microsoft\VC\v170\Platforms\ARM64\PlatformToolsets"
+          $latest = Get-ChildItem $toolsetsDir -Directory -Filter "v14*" | Sort-Object Name -Descending | Select-Object -First 1
+          $toolset = $latest.Name
+          Write-Host "Detected platform toolset: $toolset"
           echo "toolset=$toolset" >> $env:GITHUB_OUTPUT
 
       - name: Build
