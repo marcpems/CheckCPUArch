@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-x64:
     name: Build (x64)
@@ -49,6 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CheckCPUArch-x64-Release
+          retention-days: 1
           path: |
             out\x64\Release\CheckCPUArch.exe
             out\x64\Release\CheckCPUArch.pdb
@@ -97,7 +101,48 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CheckCPUArch-ARM64-Release
+          retention-days: 1
           path: |
             out\ARM64\Release\CheckCPUArch.exe
             out\ARM64\Release\CheckCPUArch.pdb
+
+  release:
+    name: Update latest release
+    needs: [build-x64, build-arm64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download x64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: CheckCPUArch-x64-Release
+          path: artifacts/x64
+
+      - name: Download ARM64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: CheckCPUArch-ARM64-Release
+          path: artifacts/arm64
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          cd artifacts/x64 && zip -j ../../CheckCPUArch-x64.zip CheckCPUArch.exe CheckCPUArch.pdb && cd ../..
+          cd artifacts/arm64 && zip -j ../../CheckCPUArch-ARM64.zip CheckCPUArch.exe CheckCPUArch.pdb && cd ../..
+
+      - name: Create or update latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          # Delete existing 'latest' release and tag if they exist
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          # Create new release with the build artifacts
+          gh release create latest \
+            --title "Latest Build" \
+            --notes "Automatically updated from the last successful CI build on $(date -u '+%Y-%m-%d %H:%M UTC')." \
+            --latest \
+            CheckCPUArch-x64.zip \
+            CheckCPUArch-ARM64.zip
 
