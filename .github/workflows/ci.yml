@@ -5,18 +5,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build (${{ matrix.platform }})
+  build-x64:
+    name: Build (x64)
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [x64, ARM64]
-        configuration: [Release]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install v145 build tools
+        shell: pwsh
+        run: |
+          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
+          $installPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -property installationPath
+          $argList = @(
+            "modify", "--installPath", "`"$installPath`"", "--quiet", "--norestart",
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64.v145"
+          )
+          Write-Host "Installing v145 x64 build tools..."
+          Start-Process -FilePath $vsInstaller -ArgumentList $argList -Wait -NoNewWindow
+          Write-Host "Installation complete"
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -25,22 +34,70 @@ jobs:
         shell: pwsh
         run: |
           msbuild.exe .\CheckCPUArch.vcxproj /m `
-            /p:Configuration=${{ matrix.configuration }} `
-            /p:Platform=${{ matrix.platform }} `
-            /p:OutDir="${{ github.workspace }}\out\${{ matrix.platform }}\${{ matrix.configuration }}\"
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:OutDir="${{ github.workspace }}\out\x64\Release\"
 
       - name: Verify outputs
         shell: pwsh
         run: |
-          dir "out\${{ matrix.platform }}\${{ matrix.configuration }}\"
-          if (!(Test-Path "out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.exe")) { throw "Missing EXE" }
-          if (!(Test-Path "out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.pdb")) { throw "Missing PDB" }
+          dir "out\x64\Release\"
+          if (!(Test-Path "out\x64\Release\CheckCPUArch.exe")) { throw "Missing EXE" }
+          if (!(Test-Path "out\x64\Release\CheckCPUArch.pdb")) { throw "Missing PDB" }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CheckCPUArch-${{ matrix.platform }}-${{ matrix.configuration }}
+          name: CheckCPUArch-x64-Release
           path: |
-            out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.exe
-            out\${{ matrix.platform }}\${{ matrix.configuration }}\CheckCPUArch.pdb
+            out\x64\Release\CheckCPUArch.exe
+            out\x64\Release\CheckCPUArch.pdb
+
+  build-arm64:
+    name: Build (ARM64)
+    runs-on: windows-11-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install v145 build tools
+        shell: pwsh
+        run: |
+          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
+          $installPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -property installationPath
+          $argList = @(
+            "modify", "--installPath", "`"$installPath`"", "--quiet", "--norestart",
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.ARM64.v145"
+          )
+          Write-Host "Installing v145 ARM64 build tools..."
+          Start-Process -FilePath $vsInstaller -ArgumentList $argList -Wait -NoNewWindow
+          Write-Host "Installation complete"
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build
+        shell: pwsh
+        run: |
+          msbuild.exe .\CheckCPUArch.vcxproj /m `
+            /p:Configuration=Release `
+            /p:Platform=ARM64 `
+            /p:OutDir="${{ github.workspace }}\out\ARM64\Release\"
+
+      - name: Verify outputs
+        shell: pwsh
+        run: |
+          dir "out\ARM64\Release\"
+          if (!(Test-Path "out\ARM64\Release\CheckCPUArch.exe")) { throw "Missing EXE" }
+          if (!(Test-Path "out\ARM64\Release\CheckCPUArch.pdb")) { throw "Missing PDB" }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CheckCPUArch-ARM64-Release
+          path: |
+            out\ARM64\Release\CheckCPUArch.exe
+            out\ARM64\Release\CheckCPUArch.pdb
 
