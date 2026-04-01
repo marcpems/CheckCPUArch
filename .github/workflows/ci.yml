@@ -16,22 +16,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install v145 build tools
-        shell: pwsh
-        run: |
-          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
-          $installPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -property installationPath
-          $argList = @(
-            "modify", "--installPath", "`"$installPath`"", "--quiet", "--norestart",
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64.v145"
-          )
-          Write-Host "Installing v145 x64 build tools..."
-          Start-Process -FilePath $vsInstaller -ArgumentList $argList -Wait -NoNewWindow
-          Write-Host "Installation complete"
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
+
+      - name: Detect available platform toolset
+        id: toolset
+        shell: pwsh
+        run: |
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -property installationPath
+          $vcDir = Join-Path $installPath "VC\Tools\MSVC"
+          $latest = Get-ChildItem $vcDir -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $major = $latest.Name.Split('.')[0]
+          $toolset = "v${major}0"
+          Write-Host "Detected toolset: $toolset (from $($latest.Name))"
+          echo "toolset=$toolset" >> $env:GITHUB_OUTPUT
 
       - name: Build
         shell: pwsh
@@ -39,6 +38,7 @@ jobs:
           msbuild.exe .\CheckCPUArch.vcxproj /m `
             /p:Configuration=Release `
             /p:Platform=x64 `
+            /p:PlatformToolset=${{ steps.toolset.outputs.toolset }} `
             /p:OutDir="${{ github.workspace }}\out\x64\Release\"
 
       - name: Verify outputs
@@ -65,22 +65,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install v145 build tools
-        shell: pwsh
-        run: |
-          $vsInstaller = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe"
-          $installPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -property installationPath
-          $argList = @(
-            "modify", "--installPath", "`"$installPath`"", "--quiet", "--norestart",
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.ARM64.v145"
-          )
-          Write-Host "Installing v145 ARM64 build tools..."
-          Start-Process -FilePath $vsInstaller -ArgumentList $argList -Wait -NoNewWindow
-          Write-Host "Installation complete"
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
+
+      - name: Detect available platform toolset
+        id: toolset
+        shell: pwsh
+        run: |
+          $vswhere = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -latest -property installationPath
+          $vcDir = Join-Path $installPath "VC\Tools\MSVC"
+          $latest = Get-ChildItem $vcDir -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $major = $latest.Name.Split('.')[0]
+          $toolset = "v${major}0"
+          Write-Host "Detected toolset: $toolset (from $($latest.Name))"
+          echo "toolset=$toolset" >> $env:GITHUB_OUTPUT
 
       - name: Build
         shell: pwsh
@@ -88,6 +87,7 @@ jobs:
           msbuild.exe .\CheckCPUArch.vcxproj /m `
             /p:Configuration=Release `
             /p:Platform=ARM64 `
+            /p:PlatformToolset=${{ steps.toolset.outputs.toolset }} `
             /p:OutDir="${{ github.workspace }}\out\ARM64\Release\"
 
       - name: Verify outputs
